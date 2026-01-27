@@ -31,8 +31,10 @@
   </form>
 
   <div id="progressContainer" style="display:none; margin-top:20px; width:100%; max-width:500px;">
-    <p>上传进度: <span id="progressText">0%</span></p>
-    <progress id="progressBar" value="0" max="100"></progress>
+    <p>上传进度: <span id="uploadText">0%</span></p>
+    <progress id="uploadBar" value="0" max="100"></progress>
+    <p style="margin-top:10px;">压缩进度: <span id="compressionText">等待中...</span></p>
+    <progress id="compressionBar" value="0" max="100"></progress>
   </div>
 
   <div id="result"></div>
@@ -40,42 +42,113 @@
   <script>
     const form = document.getElementById('uploadForm');
     const progressContainer = document.getElementById('progressContainer');
-    const progressBar = document.getElementById('progressBar');
-    const progressText = document.getElementById('progressText');
+    const uploadBar = document.getElementById('uploadBar');
+    const uploadText = document.getElementById('uploadText');
+    const compressionBar = document.getElementById('compressionBar');
+    const compressionText = document.getElementById('compressionText');
     const result = document.getElementById('result');
 
     form.addEventListener('submit', e => {
       e.preventDefault();
-      const formData = new FormData(form);
-      const xhr = new XMLHttpRequest();
+      
+      // 每次提交生成新的随机 ID
+      const clientId = Math.random().toString(36).substring(2, 11);
+      console.log('开始新的上传任务，客户端ID:', clientId);
 
+      // 重置进度条
+      progressContainer.style.display = 'block';
+      uploadBar.value = 0;
+      uploadText.textContent = '0%';
+      compressionBar.value = 0;
+      compressionBar.max = 100;
+      compressionText.textContent = '正在连接服务器...';
+      result.innerHTML = '';
+
+      // 建立 SSE 连接以监听压缩进度
+      const eventSource = new EventSource(`/events/${clientId}`);
+      let isConnected = false;
+      
+      eventSource.onopen = () => {
+        console.log('SSE 连接已建立');
+        isConnected = true;
+      };
+
+      eventSource.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        console.log('收到服务器消息:', data);
+        
+        if (data.type === 'connected') {
+          console.log('服务器确认连接并已准备好推送');
+          // 连接建立后开始上传
+          startUpload(clientId, eventSource);
+        } else if (data.percentage !== undefined) {
+          compressionBar.max = 100;
+          compressionBar.value = data.percentage;
+          compressionText.textContent = `${data.percentage}%`;
+        }
+      };
+
+
+      eventSource.onerror = (err) => {
+        console.error('SSE 连接错误:', err);
+        if (!isConnected) {
+            compressionText.textContent = '无法建立进度连接，尝试强制上传...';
+            startUpload(clientId, eventSource);
+        }
+      };
+    });
+
+    function startUpload(clientId, eventSource) {
+      const formData = new FormData(form);
+      formData.append('clientId', clientId);
+
+      const xhr = new XMLHttpRequest();
       xhr.open('POST', '/upload', true);
 
       xhr.upload.onprogress = e => {
         if (e.lengthComputable) {
           let percent = Math.round((e.loaded / e.total) * 100);
-          progressContainer.style.display = 'block';
-          progressBar.value = percent;
-          progressText.textContent = percent + '%';
+          uploadBar.value = percent;
+          uploadText.textContent = percent + '%';
+          if (percent === 100) {
+              compressionText.textContent = '文件上传完成，正在压缩...';
+          }
         }
       };
 
       xhr.onload = () => {
+        console.log('上传请求完成，状态码:', xhr.status);
+        setTimeout(() => eventSource.close(), 1000); // 略微延迟关闭以确保最后一条消息收到
         if (xhr.status === 200) {
           result.innerHTML = xhr.responseText.replace(/<li>/g, '<div class=\"card\">').replace(/<\/li>/g, '</div>').replace(/<ul>/g, '').replace(/<\/ul>/g, '');
-          progressBar.value = 100;
-          progressText.textContent = '100%';
+          uploadBar.value = 100;
+          uploadText.textContent = '100%';
+          compressionText.textContent = '压缩流程已结束';
         } else {
-          result.innerHTML = `<p style=\"color:red;\">上传失败，状态码：${xhr.status}</p>`;
+          result.innerHTML = `<p style=\"color:red;\">服务请求失败，状态码：${xhr.status}</p>`;
         }
       };
 
       xhr.onerror = () => {
-        result.innerHTML = '<p style=\"color:red;\">上传出错，请重试。</p>';
+        eventSource.close();
+        result.innerHTML = '<p style=\"color:red;\">网络错误，请重试。</p>';
       };
 
       xhr.send(formData);
+    }
+
+    // 实现点击下载后移除卡片
+    result.addEventListener('click', e => {
+      if (e.target.tagName === 'A' && e.target.href.includes('/download/')) {
+        const card = e.target.closest('.card');
+        if (card) {
+          card.remove();
+        }
+      }
     });
   </script>
+
+
+
 </body>
 </html>

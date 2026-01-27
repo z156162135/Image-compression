@@ -1,0 +1,6 @@
+{
+  "cronExpression": "* * * * *",
+  "cleanupIntervalMinutes": 60,
+  "description": "定时任务配置。cronExpression 优先级最高 (例如 '0 * * * *' 代表每小时整点清理)。若为空则使用 cleanupIntervalMinutes。"
+}
+
