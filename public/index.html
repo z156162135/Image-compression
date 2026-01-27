@@ -4,40 +4,131 @@
   <meta charset="UTF-8">
   <title>Image Compression Tool</title>
   <style>
-    body { font-family: 'Segoe UI', sans-serif; background: #f5f6fa; color: #333; display: flex; flex-direction: column; align-items: center; padding: 40px; }
-    h1 { margin-bottom: 20px; }
-    form { background: #fff; padding: 20px 30px; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); width: 100%; max-width: 500px; }
-    input[type=file] { margin: 10px 0; }
-    select, button { width: 100%; padding: 10px; margin: 10px 0; border-radius: 6px; border: 1px solid #ccc; font-size: 16px; }
-    button { background-color: #4CAF50; color: white; border: none; cursor: pointer; transition: 0.3s; }
-    button:hover { background-color: #45a049; }
-    progress { width: 100%; height: 20px; border-radius: 10px; }
-    #result { margin-top: 30px; width: 100%; max-width: 500px; }
-    .card { background: #fff; padding: 15px; border-radius: 8px; box-shadow: 0 1px 5px rgba(0,0,0,0.1); margin-bottom: 10px; }
-    .download-link { text-decoration: none; color: #3498db; }
+    :root {
+      --primary-color: #4a90e2;
+      --success-color: #2ecc71;
+      --bg-color: #f0f2f5;
+      --card-bg: #ffffff;
+      --text-main: #2c3e50;
+      --text-sub: #7f8c8d;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Inter', -apple-system, sans-serif; background: var(--bg-color); color: var(--text-main); height: 100vh; display: flex; overflow: hidden; }
+
+    /* 左右布局容器 */
+    .main-container { display: flex; width: 100%; height: 100%; max-width: 1400px; margin: 0 auto; gap: 20px; padding: 20px; }
+
+    /* 左侧控制面板 */
+    .left-panel { flex: 0 0 400px; display: flex; flex-direction: column; gap: 20px; overflow-y: auto; padding-right: 10px; }
+    
+    /* 右侧结果面板 */
+    .right-panel { flex: 1; background: rgba(255, 255, 255, 0.5); border-radius: 12px; border: 1px solid #ddd; overflow-y: auto; padding: 20px; position: relative; }
+
+    header { margin-bottom: 10px; }
+    h1 { font-size: 24px; color: var(--primary-color); font-weight: 700; }
+    p.subtitle { font-size: 14px; color: var(--text-sub); margin-top: 5px; }
+
+    form { background: var(--card-bg); padding: 24px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+    label { display: block; margin-bottom: 8px; font-weight: 600; font-size: 14px; }
+    input[type=file] { width: 100%; padding: 10px; margin-bottom: 20px; border: 2px dashed #cbd5e0; border-radius: 8px; cursor: pointer; transition: 0.3s; }
+    input[type=file]:hover { border-color: var(--primary-color); background: #f8fafc; }
+
+    select, button { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #ddd; font-size: 15px; transition: all 0.2s; }
+    select { margin-bottom: 20px; appearance: none; background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%234a5568' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E") no-repeat right 12px center; background-size: 16px; }
+    button { background-color: var(--primary-color); color: white; border: none; font-weight: 600; cursor: pointer; margin-top: 10px; }
+    button:hover { background-color: #357abd; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(74, 144, 226, 0.3); }
+
+    /* 进度条样式 */
+    #progressContainer { background: var(--card-bg); padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+    .progress-item { margin-bottom: 15px; }
+    .progress-header { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 6px; font-weight: 500; }
+    progress { width: 100%; height: 8px; border-radius: 4px; overflow: hidden; -webkit-appearance: none; appearance: none; }
+    progress::-webkit-progress-bar { background-color: #edf2f7; border-radius: 4px; }
+    progress::-webkit-progress-value { background-color: var(--primary-color); border-radius: 4px; transition: width 0.3s; }
+    #compressionBar::-webkit-progress-value { background-color: var(--success-color); }
+
+    /* 结果卡片样式 */
+    .card { 
+      background: var(--card-bg); 
+      padding: 16px; 
+      border-radius: 10px; 
+      border-left: 4px solid var(--success-color);
+      box-shadow: 0 2px 4px rgba(0,0,0,0.05); 
+      margin-bottom: 15px; 
+      display: flex; 
+      justify-content: space-between; 
+      align-items: center;
+      animation: slideIn 0.3s ease-out;
+    }
+    @keyframes slideIn { from { opacity: 0; transform: translateX(20px); } to { opacity: 1; transform: translateX(0); } }
+    
+    .card-info { flex: 1; }
+    .card-title { font-weight: 600; font-size: 15px; margin-bottom: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 300px; }
+    .card-meta { font-size: 13px; color: var(--text-sub); }
+    .download-btn { 
+      padding: 8px 16px; 
+      background: #ebf8ff; 
+      color: var(--primary-color); 
+      text-decoration: none; 
+      border-radius: 6px; 
+      font-size: 13px; 
+      font-weight: 600;
+      transition: 0.2s;
+    }
+    .download-btn:hover { background: var(--primary-color); color: white; }
+
+    #result-empty { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #a0aec0; text-align: center; }
   </style>
 </head>
 <body>
-  <h1>图片无损压缩工具</h1>
-  <form id="uploadForm" enctype="multipart/form-data" method="post" action="/upload">
-    <label>选择图片文件：</label>
-    <input type="file" name="images" accept="image/*" multiple required />
-    <label>输出格式：</label>
-    <select name="format" required>
-      <option value="webp">WebP（无损）</option>
-      <option value="avif">AVIF（无损）</option>
-    </select>
-    <button type="submit">上传并压缩</button>
-  </form>
+  <div class="main-container">
+    <!-- 左侧控制面板 -->
+    <div class="left-panel">
+      <header>
+        <h1>图片压缩助手</h1>
+        <p class="subtitle">极速上传，无损压缩，实时反馈</p>
+      </header>
 
-  <div id="progressContainer" style="display:none; margin-top:20px; width:100%; max-width:500px;">
-    <p>上传进度: <span id="uploadText">0%</span></p>
-    <progress id="uploadBar" value="0" max="100"></progress>
-    <p style="margin-top:10px;">压缩进度: <span id="compressionText">等待中...</span></p>
-    <progress id="compressionBar" value="0" max="100"></progress>
+      <form id="uploadForm" enctype="multipart/form-data" method="post" action="/upload">
+        <label>选择图片文件</label>
+        <input type="file" name="images" accept="image/*" multiple required />
+        
+        <label>输出格式</label>
+        <select name="format" required>
+          <option value="webp">WebP（无损）</option>
+          <option value="avif">AVIF（无损）</option>
+        </select>
+        
+        <button type="submit">开始处理</button>
+      </form>
+
+      <div id="progressContainer" style="display:none;">
+        <div class="progress-item">
+          <div class="progress-header">
+            <span>上传同步</span>
+            <span id="uploadText">0%</span>
+          </div>
+          <progress id="uploadBar" value="0" max="100"></progress>
+        </div>
+
+        <div class="progress-item">
+          <div class="progress-header">
+            <span>正在压缩</span>
+            <span id="compressionText">等待中...</span>
+          </div>
+          <progress id="compressionBar" value="0" max="100"></progress>
+        </div>
+      </div>
+    </div>
+
+    <!-- 右侧结果面板 -->
+    <div class="right-panel">
+      <div id="result-empty">结果将显示在这里</div>
+      <div id="result"></div>
+    </div>
   </div>
 
-  <div id="result"></div>
 
   <script>
     const form = document.getElementById('uploadForm');
@@ -81,12 +172,13 @@
           console.log('服务器确认连接并已准备好推送');
           // 连接建立后开始上传
           startUpload(clientId, eventSource);
-        } else if (data.percentage !== undefined) {
-          compressionBar.max = 100;
-          compressionBar.value = data.percentage;
-          compressionText.textContent = `${data.percentage}%`;
+        } else if (data.current !== undefined) {
+          compressionBar.max = data.total;
+          compressionBar.value = data.current;
+          compressionText.textContent = `${data.current} / ${data.total}`;
         }
       };
+
 
 
       eventSource.onerror = (err) => {
@@ -118,20 +210,47 @@
 
       xhr.onload = () => {
         console.log('上传请求完成，状态码:', xhr.status);
-        setTimeout(() => eventSource.close(), 1000); // 略微延迟关闭以确保最后一条消息收到
+        setTimeout(() => eventSource.close(), 1000);
+        
         if (xhr.status === 200) {
-          result.innerHTML = xhr.responseText.replace(/<li>/g, '<div class=\"card\">').replace(/<\/li>/g, '</div>').replace(/<ul>/g, '').replace(/<\/ul>/g, '');
+          const results = JSON.parse(xhr.responseText);
+          document.getElementById('result-empty').style.display = 'none';
+          
+          results.forEach(res => {
+            const card = document.createElement('div');
+            card.className = 'card';
+            
+            if (res.success) {
+              card.innerHTML = `
+                <div class="card-info">
+                  <div class="card-title" title="${res.originalName}">${res.originalName}</div>
+                  <div class="card-meta">${res.originalSize} KB → ${res.compressedSize} KB</div>
+                </div>
+                <a href="/download/${res.fileName}" class="download-btn">下载</a>
+              `;
+            } else {
+              card.style.borderLeftColor = '#e74c3c';
+              card.innerHTML = `
+                <div class="card-info">
+                  <div class="card-title">${res.originalName}</div>
+                  <div class="card-meta" style="color:#e74c3c">压缩失败: ${res.error}</div>
+                </div>
+              `;
+            }
+            result.appendChild(card);
+          });
+          
           uploadBar.value = 100;
           uploadText.textContent = '100%';
-          compressionText.textContent = '压缩流程已结束';
+          compressionText.textContent = '处理已完成';
         } else {
-          result.innerHTML = `<p style=\"color:red;\">服务请求失败，状态码：${xhr.status}</p>`;
+          result.innerHTML = `<p style="color:red; padding:20px;">服务请求失败，状态码：${xhr.status}</p>`;
         }
       };
 
       xhr.onerror = () => {
         eventSource.close();
-        result.innerHTML = '<p style=\"color:red;\">网络错误，请重试。</p>';
+        result.innerHTML = '<p style="color:red; padding:20px;">网络错误，请重试。</p>';
       };
 
       xhr.send(formData);
@@ -139,13 +258,17 @@
 
     // 实现点击下载后移除卡片
     result.addEventListener('click', e => {
-      if (e.target.tagName === 'A' && e.target.href.includes('/download/')) {
+      if (e.target.classList.contains('download-btn')) {
         const card = e.target.closest('.card');
         if (card) {
           card.remove();
+          if (result.children.length === 0) {
+            document.getElementById('result-empty').style.display = 'block';
+          }
         }
       }
     });
+
   </script>
 
 
