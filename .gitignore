@@ -1,5 +1,6 @@
 # 忽略 node_modules 文件夹
 node_modules/
+uploads/
 
 # 忽略日志文件
 *.log
